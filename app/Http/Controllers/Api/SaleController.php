@@ -58,7 +58,7 @@ class SaleController extends Controller
             }
 
             $sale = Sale::create([
-                'user_id' => 1,
+                'user_id' => $request->user()->id,
                 'total'   => $totalAmount,
             ]);
 
