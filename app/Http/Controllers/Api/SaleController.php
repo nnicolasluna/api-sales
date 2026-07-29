@@ -84,10 +84,23 @@ class SaleController extends Controller
     }
     public function index(): JsonResponse
     {
-        $sales = Sale::get();
+        $sales = Sale::with('user')
+            ->latest()
+            ->get();
+
+        $data = [];
+
+        foreach ($sales as $sale) {
+            $data[] = [
+                'id' => $sale->id,
+                'user_name' => $sale->user ? $sale->user->name : null,
+                'total' => $sale->total,
+                'created_at' => $sale->created_at,
+            ];
+        }
 
         return response()->json([
-            'data' => $sales,
+            'data' => $data,
         ]);
     }
     public function show($id): JsonResponse
