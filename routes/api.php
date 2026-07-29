@@ -16,6 +16,7 @@ Route::middleware('auth:sanctum')->group(function () {
   Route::post('/sales', [SaleController::class, 'store']);
   Route::get('/sales', [SaleController::class, 'index']);
   Route::get('/sales/{id}', [SaleController::class, 'show']);
+  Route::delete('/sales/{id}', [SaleController::class, 'destroy']);
 
   Route::get('/test', function () {
     return response()->json([

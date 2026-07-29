@@ -71,8 +71,10 @@ class SaleController extends Controller
             DB::commit();
 
             return response()->json([
-                'data'    => $sale->load('saleDetails.product'),
-            ]);
+                'message' => 'Venta creada correctamente',
+                'sale_id' => $sale->id,
+                'total'   => $sale->total,
+            ], 201);
         } catch (Exception $e) {
 
             DB::rollBack();
@@ -84,7 +86,7 @@ class SaleController extends Controller
     }
     public function index(): JsonResponse
     {
-        $sales = Sale::with('user')
+        $sales = Sale::with(['user', 'saleDetails.product'])
             ->latest()
             ->get();
 
@@ -96,6 +98,13 @@ class SaleController extends Controller
                 'user_name' => $sale->user ? $sale->user->name : null,
                 'total' => $sale->total,
                 'created_at' => $sale->created_at,
+                'details' => $sale->saleDetails->map(function ($detail) {
+                    return [
+                        'product' => $detail->product ? $detail->product->name : null,
+                        'quantity' => $detail->quantity,
+                        'subtotal' => $detail->subtotal,
+                    ];
+                }),
             ];
         }
 
@@ -110,5 +119,41 @@ class SaleController extends Controller
         return response()->json([
             'data' => $sale,
         ]);
+    }
+    public function destroy($id): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+            $sale = Sale::with('saleDetails')->find($id);
+            if (!$sale) {
+                return response()->json([
+                    'error' => 'La venta no existe.'
+                ], 404);
+            }
+            foreach ($sale->saleDetails as $detail) {
+                $product = Product::where('id', $detail->product_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($product) {
+                    $product->stock += $detail->quantity;
+                    $product->save();
+                }
+            }
+            $sale->saleDetails()->delete();
+            $sale->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Venta eliminada y Se restableció el stock.'
+            ], 200);
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'error' => 'Error al cancelar la venta: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
